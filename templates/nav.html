@@ -1,0 +1,7 @@
+    <nav>
+        <a href="{{meta['APP_URL']}}">Home</a>
+        {% if current_user.is_authenticated %}
+        <a href="{{url_for('tests')}}">Tests</a>
+        <a href="{{meta['APP_URL']}}">Database</a>
+        {%  endif %}
+    </nav>

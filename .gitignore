@@ -1,0 +1,43 @@
+# Flask
+__pycache__/
+instance/
+*.pyc
+*.pyo
+*.pyd
+*.pyi
+*.pyz
+.pytest_cache/
+.coverage
+htmlcov/
+.pyenv/
+pipenv.lock
+
+# Environment variables
+.env
+.env.*
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.sublime*
+*.swp
+
+# Logs
+logs/
+*.log
+
+# Compiled Python files
+*.pyc
+*.pyo
+*.pyd
+
+# Package files
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+venv/
+venv10/
+/flask_session/
+/config.py
