@@ -14,8 +14,13 @@ def init_session(app):
     sess.init_app(app)
     return sess
 
+
 def store_user_in_session(user):
     session[APP_NAME+'_user'] = user
 
+
 def get_user_in_session():
     return session.get(APP_NAME+'_user')
+
+
+

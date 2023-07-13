@@ -37,11 +37,12 @@ def error_function(e):
 def initialize_database():
 
     app = initialize_db_from_uri(MONGO_URI, database=MONGO_DB, error=error_function)
-    if app is not False:
-        if MONGO_DB not in mongo.cx.list_database_names():
+
+    if app is not False and mongo.mongo is not None:
+        if MONGO_DB not in mongo.mongo.cx.list_database_names():
             mongo.cx.get_database(MONGO_DB)
             print(f"Created database '{MONGO_DB}'")
-        db = mongo.cx[MONGO_DB]
+        db = mongo.mongo.cx[MONGO_DB]
         create_collections(db)
     return app
 
@@ -59,7 +60,7 @@ def test_database():
 
     user_collection = APP_NAME+'_users'
     require_collections = [user_collection]
-    current_collections = mongo.cx[MONGO_DB].list_collection_names()
+    current_collections = mongo.mongo.cx[MONGO_DB].list_collection_names()
     for coll in require_collections:
         if coll not in current_collections:
             print("Missing collection: "+coll)

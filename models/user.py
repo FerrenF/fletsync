@@ -11,30 +11,18 @@ from util.fl_session import get_user_in_session
 
 class User(UserMixin):
     def __init__(self, user: typing.Dict = None):
-        self.user_id = None
-        self.user_name = None
-        self.user_id = pymongo.collection.ObjectId().__str__()
-        self.password_hash = None
-        self.role = None
+        self.user_id = user.get('user_id', pymongo.collection.ObjectId().__str__())
+        self.user_name = user.get('user_name', None)
+        self.password_hash = user.get('password_hash', None)
+        self.role = user.get('role', None)
         self.authenticated = False
-
-        if user is not None:
-            if 'user_name' in user:
-                self.user_name = user['user_name']
-            if 'user_id' in user:
-                self.user_id = user['user_id']
-            if 'password_hash' in user:
-                self.password_hash = user['password_hash']
-            if 'role' in user:
-                self.role = user['role']
-
 
     def to_dict(self):
         return dict({
             'user_name': self.user_name,
             'user_id': self.get_id(),
             'password_hash': self.password_hash,
-            'role': self.role,
+            'role': self.role
                      })
 
     @staticmethod

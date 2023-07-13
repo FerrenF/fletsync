@@ -6,20 +6,23 @@ from config import MONGO_URI
 
 
 class MongoDBConnection:
+    app = None
     def __init__(self, app=None):
         self.app = app
         self.connected = False
         self.last_error = None
+        self.mongo = PyMongo(MongoDBConnection.app if MongoDBConnection.app is not None else None)
         if app is not None:
             self.init_app(app)
 
     def is_connected(self):
-        return self.connected or self.last_error
+        return self.connected and self.last_error is None
 
     def init_app(self, app):
         app.config['MONGO_URI'] = MONGO_URI
         try:
-            self.mongo = PyMongo(app)
+            MongoDBConnection.app = app
+            self.mongo.init_app(app)
             self.mongo.cx.server_info()
         except OperationFailure as e:
             self.last_error = e

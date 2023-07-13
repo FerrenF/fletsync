@@ -2,6 +2,7 @@ from typing import Callable
 from urllib.parse import quote_plus
 
 import flask
+from flask_pymongo import PyMongo
 from pymongo.errors import OperationFailure
 
 from config import MONGO_URI, MONGO_DB, APP_NAME
@@ -10,6 +11,7 @@ from util.uri import insert_db_into_uri
 
 
 mongo = MongoDBConnection()
+
 
 def initialize_db(app, error: Callable = None):
     app.config['MONGO_URI'] = MONGO_URI
