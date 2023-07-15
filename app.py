@@ -17,7 +17,7 @@ db_connection.init_app(app)
 init_session(app)
 init_login_manager(app)
 
-from util.openapi.etsy_openapi import etsy_api
+from util.openapi.etsyopenapi import etsy_api
 
 etsy_api.register_app(app)
 

@@ -1,11 +1,32 @@
 import json
 import urllib.request
 from datetime import timedelta
-
+from dataclasses import dataclass
 import requests
+from flask import Flask
+from requests import Response
 
 from config import ETSY_API_KEY
 
+
+
+@dataclass(eq=True, repr=True)
+class PreparedOpenAPICommand:
+    route: str = None
+    method: str = ""
+    body: dict = None
+    headers: dict = None
+    arguments: dict = None
+    scope: str = None
+    server: str = None
+    name: str = None
+
+@dataclass
+class APIResponse:
+    content: dict
+    success: bool
+    code: int
+    description: str
 
 
 class OpenAPI_CommandException(Exception):
@@ -21,7 +42,8 @@ class OpenAPI_CommandException(Exception):
 
 class OpenAPI_Interface:
 
-    def __init__(self, version, servers, commands, schemas, security):
+    def __init__(self, version, servers, commands, schemas, security, app: Flask = None):
+        self.auth_types = dict()
         self.command_dictionary = commands
         self.version = version
         self.servers = servers
@@ -30,6 +52,16 @@ class OpenAPI_Interface:
         self.requests_session = requests.Session()
         self.oauth_session = None
         self.associated_user = None
+        self.registered_app: Flask = app
+
+    @property
+    def app_registered(self):
+        return self.registered_app is not None
+
+    def register_app(self, app: Flask):
+        self.registered_app = app
+        for auth_type in self.auth_types.values():
+            auth_type.register_app(app)
 
     def get_token_authorized_user(self):
         return self.oauth_session.get_token_id_prefix()
@@ -37,10 +69,14 @@ class OpenAPI_Interface:
     def get_token_authorization_header(self):
         return self.oauth_session.get_authorization_header()
 
-    def associate_user(self,user_id):
+    def associate_user(self, user_id):
         self.associated_user = user_id
-        if self.oauth_session is not None:
-            self.oauth_session.associate_user(user_id)
+        for auth_type in self.auth_types.values():
+            auth_type.associate_user(user_id)
+
+    def retrieve_saved_authorizations(self):
+        for auth_type in self.auth_types.values():
+            auth_type.retrieve_saved_authorization()
 
     def get_server(self, index=0):
         if len(self.servers) > index:
@@ -52,19 +88,44 @@ class OpenAPI_Interface:
 
     @property
     def authorized(self):
-        return self.oauth_session.authorized if self.oauth_session is not None else False
+        authorized = True
+        for auth in self.auth_types.values():
+            if not auth.authorized:
+                authorized = False
+        return authorized
 
-    def link_oauth(self, oauth_object):
-        self.oauth_session = oauth_object
+    def auth_type_exists(self, typeof):
+        return typeof in self.auth_types
+
+    def get_auth_type(self, obj):
+        result = self.auth_types.get(obj, None)
+        return result
+
+    def add_auth_type(self, auth_type):
+        self.auth_types[type(auth_type)] = auth_type
+
+    def process_auth_types_on(self, prepared_command: PreparedOpenAPICommand):
+        """
+        :param prepared_command: PreparedOpenAPICommand to process auth_types on
+        :return: prepared_command
+        """
+        for auth_type in self.auth_types.values():
+            auth_type.wrap_command(prepared_command)
+        return prepared_command
 
     def get_command_info(self, operation_name):
         if operation_name not in self.command_dictionary:
             return None
         return self.command_dictionary[operation_name]
 
+    def get_command_body_requirements(self, operation_name):
+        inf = self.get_command_info(operation_name)
+        return inf['body'].get('content', None)
+
     def get_command_response(self, operation_name, status):
         command_responses = self.get_command_responses(operation_name)
-        return command_responses.get(status, None)
+        result = command_responses.get(str(status), None)
+        return result
 
     def get_command_responses(self, operation_name):
         command_info = self.get_command_info(operation_name)
@@ -75,71 +136,80 @@ class OpenAPI_Interface:
 
     def make_command(self, operation_name, **kwargs):
 
-        if operation_name not in self.command_dictionary:
-            return None
-
-        prepared_command = dict()
         command_info = self.get_command_info(operation_name)
         if command_info is None:
+            print("Failed command creation at lookup 1")
             return None
-        prepared_command['route'] = command_info['route']
-        prepared_command['method'] = command_info['method']
-        prepared_command['body'] = None
-        prepared_command['headers'] = dict()
-        prepared_command['arguments'] = None
-        prepared_command['scope'] = None
 
-        h = prepared_command['headers']
+        prepared_command = PreparedOpenAPICommand(name=operation_name,
+                                                  route=command_info.get("route", None),
+                                                  method=command_info.get("method", 'get'))
+        prepared_command.headers = dict()
+        h = prepared_command.headers
         h['Content-Type'] = "application/x-www-form-urlencoded; charset=utf-8"
-
-        required_security = command_info.get('security', None)
-        if required_security is not None:
-            for security_type in required_security:
-                if 'api_key' in security_type:
-                    h['x-api-key'] = ETSY_API_KEY
-                if 'oauth2' in security_type:
-                    prepared_command['scope'] = security_type['oauth2']
-                    h = h.update(self.get_token_authorization_header())
 
         required_body = command_info.get('requestBody', None)
         required_arguments = command_info.get('parameters', None)
         if required_arguments is not None:
             for argument in required_arguments:
-                required = argument.get('required', True)
-                if argument['name'] not in kwargs.keys() and required:
+                required = argument.get('required', "true")
+                if argument['name'] not in kwargs.keys() and required == "true":
                     raise(OpenAPI_CommandException(prepared_command,'argument','name',argument.get('description', "Missing required argument.")))
-                s = prepared_command['route']
-                sr = str(s)
+
+                sr = str(prepared_command.route)
                 arg_n = argument['name']
-                if argument['in'] == 'path' and arg_n in s:
+                if argument['in'] == 'path' and arg_n in prepared_command.route:
                     p = kwargs.pop(kwargs[arg_n])
                     s_rep = sr.replace("{"+arg_n+"}", p)
-                    prepared_command['route'] = s_rep
+                    prepared_command.route = s_rep
 
         if required_body is not None:
-            required_body = required_body['content']
-            prepared_command['body'] = required_body
+            if kwargs.get('body', None) is not None:
+                raise(OpenAPI_CommandException(prepared_command, 'component','body','Missing required request body.'))
+            else:
+                prepared_command.body = kwargs['body']
             #TODO: Process body requirements for uploads. I don't need that immediately
 
-        prepared_command['arguments'] = kwargs
+        prepared_command.arguments = kwargs
         server = self.get_server_uri()
-        prepared_command['server'] = server
+        prepared_command.server = server
+
+        # Finally, process authorization types on the command
+        prepared_command = self.process_auth_types_on(prepared_command)
 
         return prepared_command
 
     def send_command(self, command):
 
-        session = self.requests_session
-        session.headers.update(command['headers'])
+        if command is None:
+            print("Problem with command.")
+            return None
+        session = requests.session()
+        session.headers.update(command.headers)
+        response = None
+        result = APIResponse({}, False, -1, "Empty result")
+        if command.method == 'get':
+            response = session.get(command.server+command.route, params=command.arguments, data=command.body)
 
-        if command['method'] == 'get':
-            return session.get(command['server']+command['route'], params=command['arguments'], data=command['body'])
-        return None
+        if response is not None:
+            result = self.parse_command_response(command.name, response)
 
+        return result
+    def parse_command_response(self, operation, response : Response):
+
+        code = response.status_code
+        respo = self.get_command_response(operation, code)
+        body = None
+        success = (code == 200)
+        description = respo.get("description", "Missing response description.")
+        if success:
+            body = json.loads(response.text)
+
+        return APIResponse(body, success, code, description)
     @staticmethod
-    def from_remote_json(uri):
+    def from_remote_json(uri, app=None):
         from database.cache import UriCache
-        response = UriCache.get_if_fresh(uri, timedelta(days=3))
+        response = UriCache.get_if_fresh(uri, timedelta(days=1))
         if response is None:
             req = urllib.request.Request(uri)
             response = urllib.request.urlopen(req, timeout=3000)
@@ -150,6 +220,7 @@ class OpenAPI_Interface:
         command_dictionary = dict()
         json_doc = json.loads(response)
         openapi_version = json_doc.get("openapi", None)
+
         openapi_servers = json_doc.get("servers", None)
         openapi_paths = json_doc.get("paths", None)
 
@@ -161,17 +232,19 @@ class OpenAPI_Interface:
 
         for openapi_path in openapi_paths:
             path_information = openapi_paths[openapi_path]
-
             for operation_type in path_information:
+
                 operation = path_information[operation_type]
 
                 command_name = operation.get('operationId', None)
+
                 command_desc = operation.get('description', None)
                 command_parameters = operation.get('parameters', None)
                 command_responses = operation.get('responses', None)
                 command_body = operation.get('requestBody', None)
                 command_security = operation.get('security', None)
                 if not (command_name and command_responses):
+
                     continue
 
                 command_dictionary[command_name] = {
@@ -184,4 +257,4 @@ class OpenAPI_Interface:
                             "security": command_security
                         }
 
-            return OpenAPI_Interface(openapi_version, openapi_servers, command_dictionary, openapi_schemas, openapi_security_schemes)
+        return OpenAPI_Interface(openapi_version, openapi_servers, commands=command_dictionary, schemas=openapi_schemas, security=openapi_security_schemes, app=app)

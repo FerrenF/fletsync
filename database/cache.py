@@ -15,7 +15,7 @@ class UriCache:
         db[UriCache.collection_name].update_one({'uri': uri}, {'$set': entry.__dict__}, upsert=True)
 
     @staticmethod
-    def get_if_fresh(uri, what_does_fresh_mean=datetime.timedelta()):
+    def get_if_fresh(uri, what_does_fresh_mean=datetime.timedelta(), purge_if_stale=True):
         from .connection import mongo as f_mongo
         db = f_mongo.mongo.cx[MONGO_DB]
         entry = db[UriCache.collection_name].find_one({'uri': uri})
@@ -27,6 +27,8 @@ class UriCache:
                 if time_difference <= what_does_fresh_mean:
                     print("retrieved from cache: " + uri)
                     return entry['data']
+                elif purge_if_stale:
+                    UriCache.purge_cache(uri)
         return None
 
     @staticmethod
