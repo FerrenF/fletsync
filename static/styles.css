@@ -1,0 +1,93 @@
+
+
+body {
+  font-family: Arial, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+p, span, input, select, button {
+  font-family: 'Roboto', Arial, sans-serif;
+}
+
+
+.navbar-component-group, .navbar-component{
+    display: flex;
+}
+.navbar-component {
+      align-items: center;
+  }
+
+  .navbar-component h4 {
+      margin-right: 5px;
+  }
+
+  .navbar-component > * {
+      margin-right: 10px;
+  }
+
+  /* Styles for the authorized status */
+  .navbar-component .authorized {
+      color: green;
+  }
+
+  /* Styles for the not authorized status */
+  .navbar-component .not-authorized {
+      color: red;
+  }
+
+
+
+  /* TESTS */
+
+#interface-select {
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  margin-right: 10px;
+  background-color: #fff;
+  color: #333;
+  font-size: 14px;
+}
+
+#console-container {
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-top: 20px;
+}
+
+#console-output {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+#console-input {
+  display: flex;
+  align-items: center;
+}
+
+#console-input-field {
+  flex: 1;
+  padding: 5px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  margin-right: 10px;
+}
+
+#console-submit-button {
+  padding: 5px 10px;
+  background-color: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+#console-submit-button:hover {
+  background-color: #45a049;
+}

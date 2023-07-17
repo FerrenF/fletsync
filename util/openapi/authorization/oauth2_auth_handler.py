@@ -3,69 +3,17 @@ from datetime import datetime, timedelta
 from authlib.common.urls import quote
 from authlib.integrations.requests_client import OAuth2Session
 from authlib.oauth2.rfc7636 import create_s256_code_challenge
-from flask import url_for, request, Flask, redirect
+from flask import Flask, url_for, request, redirect
 
-from config import ETSY_API_KEY, APP_NAME
-from models.auth import AuthorizationInstance
-from util.openapi.oauth.etsy_oauth_scopes import EtsyOAuthScope
+from config import APP_NAME
+from models.AuthorizationFlowInstance import AuthorizationFlowInstance
+from util.openapi.authorization.auth_type import AuthType
 from util.openapi.openapi_interface import PreparedOpenAPICommand
-
-
-class AuthType:
-
-    # AuthType is the base class for any authentication related alterations made to an open api request.
-    # It could be an OAuth2 alteration adding the correct token to the header, or an api key added to the request body.
-
-    # In any case, the only requirements are that the derived classes provide:
-    # a method to alter requests in such a way that satisfies the authentication type.
-    # a method to determine whether an AuthType is authorized.
-
-    # For example, an api-key authorization type is implicitly always authorized.
-    # An OAuth2 auth type is not always in an authorized state, and must periodically refresh.
-
-    def __init__(self, auth_type=None):
-        self.type = auth_type
-
-    @property
-    def authorized(self):
-        return False
-
-    def wrap_command(self, **command):
-        return command
-
-    @property
-    def app_registered(self):
-        return True
-
-    def register_app(self, app):
-        pass
-
-    def associate_user(self, user_id):
-        pass
-
-    # Not every type of authorization scheme will need to store something.
-    def retrieve_saved_authorization(self):
-        pass
-
-
-class ApiKeyHandler(AuthType):
-    def __init__(self, api_key):
-        super().__init__(type(self))
-        self.api_key = api_key
-
-    @property
-    def authorized(self):
-        return True
-
-    def wrap_command(self, command : PreparedOpenAPICommand):
-        command.headers.update({"x-api-key": self.api_key})
-        return command
-
 
 
 class OAuthHandler(AuthType):
 
-    def __init__(self, app: Flask=None, name="oauth", user_id=None, requested_scope=None, request_parameters=None):
+    def __init__(self, app: Flask=None, name="authorization", user_id=None, requested_scope=None, request_parameters=None):
         """
 
         :param app: We need this because we have to register routes for the authorization flow.
@@ -77,7 +25,7 @@ class OAuthHandler(AuthType):
         self.name = name
         self.requested_scope = requested_scope
 
-        self.auth_instance = AuthorizationInstance(name)
+        self.auth_instance = AuthorizationFlowInstance(name)
         self.auth_instance.scope = self.requested_scope
         self.auth_instance.authorization_type = 'initial'
 
@@ -87,7 +35,7 @@ class OAuthHandler(AuthType):
             'tokenUrl': None,
             'authorizationUrl': None
         }
-        self.oauth_session.client_id = ETSY_API_KEY
+        self.oauth_session.client_id = request_parameters.get('client_id',APP_NAME)
         self.request_parameters = {}
         self.registered_app = app
 
@@ -103,11 +51,11 @@ class OAuthHandler(AuthType):
             return True
         if self.auth_instance.is_expired():
             if self.auth_instance.authorization_type == 'initial':
-                AuthorizationInstance.purge_request(self.auth_instance)
+                AuthorizationFlowInstance.purge_request(self.auth_instance)
             # TODO: Request refresh token because the authorization type is probably 'refresh'
         return False
 
-    def wrap_command(self, **command):
+    def wrap_command(self, command : PreparedOpenAPICommand):
         return command
 
     @property
@@ -130,7 +78,7 @@ class OAuthHandler(AuthType):
             self.auth_instance.user_id = user_id
 
     def retrieve_saved_authorization(self):
-        instance = AuthorizationInstance.retrieve_request_by(self.name, self.associated_user)
+        instance = AuthorizationFlowInstance.retrieve_request_by(self.name, self.associated_user)
         if instance is not None:
             self.auth_instance = instance
     ### End required methods for AuthType
@@ -177,7 +125,7 @@ class OAuthHandler(AuthType):
         if self.auth_instance is None:
             self.retrieve_saved_authorization()
         if self.auth_instance is None:
-            self.auth_instance = AuthorizationInstance('name', error="No authorization instance saved")
+            self.auth_instance = AuthorizationFlowInstance('name', error="No authorization instance saved")
         else:
             target_instance = self.auth_instance
             redirect_uri = url_for(f'{self.name}_authorize', _external=True, _scheme='https')
@@ -191,8 +139,7 @@ class OAuthHandler(AuthType):
             token = self.oauth_session.fetch_token(self.oauth_uris['tokenUrl'], **additional_params)
 
             target_instance.set_authorize(token['access_token'], token['refresh_token'],
-                                          (datetime.now() + timedelta(seconds=token['expires_in'])).strftime(
-                                              AuthorizationInstance.DATE_FORMAT))
+                                          (datetime.now() + timedelta(seconds=token['expires_in'])))
             self.auth_instance = target_instance
             self.update_request_instance(target_instance)
             return token
@@ -214,7 +161,7 @@ class OAuthHandler(AuthType):
             req_state = req.get('state', None)
 
             if target_instance.authorization_state != req_state:
-                AuthorizationInstance.purge_request(target_instance)
+                AuthorizationFlowInstance.purge_request(target_instance)
                 return error("Request state did not match.")
 
             if 'error' not in req:
@@ -243,8 +190,8 @@ class OAuthHandler(AuthType):
         return error() if not res else success()
 
     def purge_request_instance(self):
-        deletion = AuthorizationInstance.purge_request(self.auth_instance)
-        self.auth_instance = AuthorizationInstance(self.name)
+        deletion = AuthorizationFlowInstance.purge_request(self.auth_instance)
+        self.auth_instance = AuthorizationFlowInstance(self.name)
         return deletion
 
     def update_request_instance(self, store_request=None):
@@ -289,40 +236,3 @@ class OAuthHandler(AuthType):
 
     def redirect_on_failure(self, error):
         return redirect(url_for('index'))
-
-
-class EtsyOAuthHandler(OAuthHandler):
-
-    def __init__(self, app: Flask = None, user_id = None):
-
-        requested_scope = EtsyOAuthScope()
-        requested_scope['profile_r'] = True
-        requested_scope['shops_r'] = True
-        requested_scope['shops_w'] = True
-        requested_scope['listings_r'] = True
-        requested_scope['listings_w'] = True
-        requested_scope['listings_d'] = True
-        request_parameters = {
-            'client_id': ETSY_API_KEY
-        }
-
-        super().__init__(app, 'etsy', user_id, requested_scope, request_parameters)
-        # These permissions are requried by fletsync
-
-        self.oauth_uris = {
-            'tokenUrl': 'https://api.etsy.com/v3/public/oauth/token',
-            'authorizationUrl': 'https://www.etsy.com/oauth/connect'
-        }
-
-    def wrap_command(self, command: PreparedOpenAPICommand):
-        command.headers.update({'Authorization': 'Bearer '+self.auth_instance.authorization_token})
-        return command
-
-    def get_token_id_prefix(self):
-        if self.authorized:
-            str_t = str(self.auth_instance.authorization_token)
-            dot_ind = str_t.find('.')
-            return str_t[0:dot_ind] if dot_ind != -1 else None
-
-
-

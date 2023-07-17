@@ -3,7 +3,8 @@ from flask import Flask
 
 from config import ETSY_OPENAPI_URL, ETSY_API_KEY
 
-from util.openapi.oauth.etsy_oauth_handler import EtsyOAuthHandler, ApiKeyHandler
+from util.openapi.authorization.etsy_oauth_handler import EtsyOAuthHandler
+from util.openapi.authorization.api_key_auth_handler import ApiKeyHandler
 from util.openapi.openapi_interface import OpenAPI_Interface
 
 
@@ -50,11 +51,9 @@ class EtsyOpenAPI(OpenAPI_Interface):
     @staticmethod
     def from_remote_json(uri, app : Flask = None):
         o_api = OpenAPI_Interface.from_remote_json(uri)
+        print("Registered api at " + uri + " with " + (str(len(o_api.command_dictionary.keys()))) + " commands")
         return EtsyOpenAPI(o_api.version,
                            o_api.servers,
                            o_api.command_dictionary,
                            o_api.schema_dictionary,
                            o_api.security_dictionary, app)
-
-
-etsy_api = EtsyOpenAPI.from_remote_json(ETSY_OPENAPI_URL)

@@ -36,6 +36,7 @@ class EtsyOAuthScope:
 
     def __repr__(self):
         return self.toJSON()
+
     def __getitem__(self, item):
         return self.options[item]
 

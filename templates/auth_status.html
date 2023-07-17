@@ -8,3 +8,11 @@
     <h4>Etsy: Not Authorized</h4>
     <a href="{{ url_for('etsy_login') }}">Login with Etsy</a>
 {% endif %}
+
+{% if wc_api.authorized %}
+    <h4>WC: Authorized</h4>
+    <a href="{{ url_for('wc_purge_authorization')}}">Purge Session</a>
+{% else %}
+    <h4>WC: Not Authorized</h4>
+    <a href="{{ url_for('wc_login') }}">Login through Wordpress</a>
+{% endif %}

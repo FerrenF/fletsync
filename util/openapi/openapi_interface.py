@@ -32,10 +32,10 @@ class APIResponse:
 class OpenAPI_CommandException(Exception):
     def __init__(self, command, type, entity, description):
         super().__init__()
-        self.description=description
-        self.entity=entity
-        self.type=type
-        self.command=command
+        self.description = description
+        self.entity = entity
+        self.type = type
+        self.command = command
     def __str__(self):
         return self.description
 
@@ -138,12 +138,12 @@ class OpenAPI_Interface:
 
         command_info = self.get_command_info(operation_name)
         if command_info is None:
-            print("Failed command creation at lookup 1")
-            return None
+            raise OpenAPI_CommandException(operation_name, 'missing_command', operation_name, 'Missing command')
 
         prepared_command = PreparedOpenAPICommand(name=operation_name,
                                                   route=command_info.get("route", None),
                                                   method=command_info.get("method", 'get'))
+        prepared_command.arguments = dict()
         prepared_command.headers = dict()
         h = prepared_command.headers
         h['Content-Type'] = "application/x-www-form-urlencoded; charset=utf-8"
@@ -154,14 +154,19 @@ class OpenAPI_Interface:
             for argument in required_arguments:
                 required = argument.get('required', "true")
                 if argument['name'] not in kwargs.keys() and required == "true":
-                    raise(OpenAPI_CommandException(prepared_command,'argument','name',argument.get('description', "Missing required argument.")))
+                    raise(OpenAPI_CommandException(prepared_command, 'argument', 'name', argument.get('description', "Missing required argument.")))
 
                 sr = str(prepared_command.route)
                 arg_n = argument['name']
-                if argument['in'] == 'path' and arg_n in prepared_command.route:
+                if argument['in'] == 'path' and arg_n in prepared_command.route and arg_n in kwargs.keys():
                     p = kwargs.pop(kwargs[arg_n])
                     s_rep = sr.replace("{"+arg_n+"}", p)
                     prepared_command.route = s_rep
+
+                if argument['in'] == 'query' and arg_n in kwargs.keys():
+                    prepared_command.arguments.update({
+                        arg_n: kwargs[arg_n]
+                    })
 
         if required_body is not None:
             if kwargs.get('body', None) is not None:
@@ -237,7 +242,39 @@ class OpenAPI_Interface:
                 operation = path_information[operation_type]
 
                 command_name = operation.get('operationId', None)
+                if command_name is None:
 
+                    # So, we don't seem to have OpenAPI 3.1.0's operationId attribute, so we will need to create a human
+                    # readable command that is intuitive also. I've chosen methodPath
+                    # Example: /path/products GET = getProducts
+                    # It wont always make 100% sense but it will be intuitive.
+                    messy_path: str = openapi_path
+                    messy_path_parts = messy_path.split('/')
+                    command= ""
+                    target=""
+                    for path_part in messy_path_parts:
+                        if len(path_part) and '{' in path_part:
+                            tmp = ""
+                            strp = path_part.strip('{}')
+                            if strp.find('_') != -1:
+                                brk = strp.split('_')
+                                for pc in brk:
+                                    tmp += pc.capitalize()
+                            else:
+                                tmp += strp
+                            target += tmp.capitalize()
+                        else:
+                            if path_part.find('_') != -1:
+                                brk = path_part.split('_')
+                                for pc in brk:
+                                    command += pc.capitalize()
+                            else:
+                                command += path_part.capitalize()
+
+                    command_name = str(operation_type).lower() + command
+
+                    if target != "":
+                        command_name += "By"+target
                 command_desc = operation.get('description', None)
                 command_parameters = operation.get('parameters', None)
                 command_responses = operation.get('responses', None)

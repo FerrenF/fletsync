@@ -12,10 +12,6 @@
     <h2>Welcome to {{ meta['APP_NAME'] }}!</h2>
 
     {% if current_user.is_authenticated %}
-        {%  include "auth_status.html" %}
-    {% endif %}
-
-    {% if current_user.is_authenticated %}
          <h2>Hi, {{current_user.user_name}}</h2>
           <h2><a href="{{ url_for('logout') }}">Logout</a>!</h2>
     {% else %}

@@ -1,0 +1,25 @@
+
+<div class="navbar-component-group">
+    <div class="navbar-component">
+        <h4>Etsy:</h4>
+        {% if etsy_api.authorized %}
+            <span class="authorized">Authorized</span>
+            <span class="user-id">User ID: {{ etsy_api.get_user_id() }}</span>
+            <a href="{{ url_for('etsy_purge_authorization') }}">Purge Session</a>
+        {% else %}
+            <span class="not-authorized">Not Authorized</span>
+            <a href="{{ url_for('etsy_login') }}">Login with Etsy</a>
+        {% endif %}
+    </div>
+
+    <div class="navbar-component">
+        <h4>WC:</h4>
+        {% if wc_api.authorized %}
+            <span class="authorized">Authorized</span>
+            <a href="{{ url_for('wc_purge_authorization') }}">Purge Session</a>
+        {% else %}
+            <span class="not-authorized">Not Authorized</span>
+            <a href="{{ url_for('wc_login') }}">Login through Wordpress</a>
+        {% endif %}
+    </div>
+</div>

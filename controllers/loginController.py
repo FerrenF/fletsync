@@ -1,6 +1,6 @@
 import bcrypt
 from flask import request, render_template, redirect, url_for
-from flask_login import login_user
+from flask_login import login_user, logout_user
 
 from models.user import User
 from util.misc import meta_data
@@ -29,5 +29,10 @@ def login():
                 return render_template('auth/login.html', error='Invalid email or password', meta=meta_data())
 
     # Render the login form
-    return render_template('auth/login.html',meta=meta_data())
+    return render_template('auth/login.html', meta=meta_data())
 
+
+def logout():
+    # Log out the user
+    logout_user()
+    return redirect(url_for('login'))

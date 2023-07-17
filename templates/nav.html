@@ -1,3 +1,4 @@
+<div class="navbar-container">
     <nav>
         <a href="{{meta['APP_URL']}}">Home</a>
         {% if current_user.is_authenticated %}
@@ -5,3 +6,7 @@
         <a href="{{meta['APP_URL']}}">Database</a>
         {%  endif %}
     </nav>
+     {% if current_user.is_authenticated %}
+        {%  include "api/auth_status_bar.html" %}
+    {% endif %}
+</div>

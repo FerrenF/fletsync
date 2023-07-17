@@ -2,11 +2,12 @@ import random
 import string
 
 import bson
+from flask import g
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure
 
 from models.user import User
-from database.connection import initialize_db, mongo, initialize_db_from_uri
+from database.connection import initialize_db, initialize_db_from_uri
 from config import MONGO_DB, MONGO_URI, ADMIN_USERNAME, APP_NAME
 from util.crypt import fl_hash_password
 
@@ -15,7 +16,6 @@ def create_collections(db):
     print("Creating collections...")
     users_collection = db[APP_NAME+"_users"]
     p_gen = ''.join(random.choices(string.ascii_uppercase + string.digits, k=16))
-    print(fl_hash_password(p_gen))
     user = {
         'user_id': bson.ObjectId().__str__(),
         'user_name': ADMIN_USERNAME,
@@ -38,6 +38,7 @@ def initialize_database():
 
     app = initialize_db_from_uri(MONGO_URI, database=MONGO_DB, error=error_function)
 
+    mongo = g.mongo
     if app is not False and mongo.mongo is not None:
         if MONGO_DB not in mongo.mongo.cx.list_database_names():
             mongo.cx.get_database(MONGO_DB)
@@ -58,6 +59,7 @@ def test_database():
     error = False
     print("Looking for collections...")
 
+    mongo = g.mongo
     user_collection = APP_NAME+'_users'
     require_collections = [user_collection]
     current_collections = mongo.mongo.cx[MONGO_DB].list_collection_names()

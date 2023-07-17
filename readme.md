@@ -7,6 +7,8 @@ using the woo-commerce database on craftsru as master, any changes that happen t
 replicated to child databases. Likewise, any change that happens to a child database is replicated to 
 the master database.
 
+![img_2.png](img_2.png)
+![img_1.png](img_1.png)
 ### Completed Milestones:
 
 #### OpenAPI_Interface: Capable of parsing openapi specifications into an interface suitable for guard-railing communication between an app and a remote API.

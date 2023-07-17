@@ -1,6 +1,7 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %} {meta['APP_NAME']} {% endblock %}</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
     <style>
         nav a {
             color: #d64161;
