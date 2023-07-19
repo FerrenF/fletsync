@@ -1,16 +1,17 @@
-<form id="api-interface-form" method="get">
+<form id="api-interface-form" method="POST">
+
     <label for="interface-select">Select API Interface:</label>
-    <select id="interface-select" name="console-interface">
+    <select id="interface-select" name="interface">
         <option value="etsy">Etsy</option>
         <option value="wc">WC</option>
         <!-- Add more options for other API interfaces as needed -->
     </select>
-    <button type="submit">Query</button>
-</form>
-<div id="console-container">
+    <div id="console-container">
     <div id="console-output"></div>
     <div id="console-input">
+        <input type="hidden" id="console-user-id" name="user_id" value="{{ current_user.get_id() }}">
         <input id="console-input-field" type="text" placeholder="Enter a command">
         <button id="console-submit-button">Submit</button>
     </div>
 </div>
+</form>

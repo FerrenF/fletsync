@@ -1,7 +1,7 @@
 import json
 import urllib.request
 from datetime import timedelta
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import requests
 from flask import Flask
 from requests import Response
@@ -21,12 +21,26 @@ class PreparedOpenAPICommand:
     server: str = None
     name: str = None
 
+    def to_dict(self):
+        return asdict(self)
+
 @dataclass
 class APIResponse:
     content: dict
     success: bool
     code: int
     description: str
+
+    def to_dict(self):
+        return {
+            'content': self.content.__str__(),
+            'success':self.success,
+            'code':self.code,
+            'description':self.description
+        }
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
 
 
 class OpenAPI_CommandException(Exception):
@@ -136,6 +150,9 @@ class OpenAPI_Interface:
 
     def make_command(self, operation_name, **kwargs):
 
+        if operation_name == 'getCommands':
+            return PreparedOpenAPICommand(name='getCommands')
+
         command_info = self.get_command_info(operation_name)
         if command_info is None:
             raise OpenAPI_CommandException(operation_name, 'missing_command', operation_name, 'Missing command')
@@ -184,11 +201,19 @@ class OpenAPI_Interface:
 
         return prepared_command
 
+    def get_command_list(self):
+        return list(self.command_dictionary.keys())
+
     def send_command(self, command):
 
         if command is None:
             print("Problem with command.")
             return None
+
+        # Built-in non-api commands
+        if command.name.lower() == 'getcommands':
+            return APIResponse({'commands':self.get_command_list()}, True, 200, "List of operation names for this interface.")
+
         session = requests.session()
         session.headers.update(command.headers)
         response = None

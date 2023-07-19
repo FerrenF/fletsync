@@ -1,5 +1,12 @@
 
 
+nav a {
+        color: #d64161;
+        font-size: 3em;
+        margin-left: 50px;
+        text-decoration: none;
+    }
+
 body {
   font-family: Arial, sans-serif;
 }

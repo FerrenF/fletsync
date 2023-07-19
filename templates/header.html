@@ -1,13 +1,4 @@
-<head>
-    <meta charset="UTF-8">
-    <title>{% block title %} {meta['APP_NAME']} {% endblock %}</title>
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
-    <style>
-        nav a {
-            color: #d64161;
-            font-size: 3em;
-            margin-left: 50px;
-            text-decoration: none;
-        }
-    </style>
-</head>
+<meta charset="UTF-8">
+<title>{% block title %} {meta['APP_NAME']} {% endblock %}</title>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+<script src="{{ url_for('static',filename='js/jquery-3.7.0.js') }}"></script>

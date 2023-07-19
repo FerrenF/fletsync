@@ -1,7 +1,7 @@
 from flask import Flask
 
 from controllers.indexController import index
-from controllers.testsController import tests_page
+from controllers.testsController import tests_page, console_input
 from controllers.loginController import login, logout
 
 
@@ -11,6 +11,9 @@ def app_register_routes(app: Flask):
         '/login': ('login', login, ['POST', 'GET']),
         '/logout': ('logout', logout, ['POST', 'GET']),
         '/tests': ('tests', tests_page, ['POST', 'GET']),
+
+
+        '/tests/command': ('tests_command', console_input, ['POST'])
 
     }
 

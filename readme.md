@@ -9,6 +9,13 @@ the master database.
 
 ![img_2.png](img_2.png)
 ![img_1.png](img_1.png)
+![img_3.png](img_3.png)
+
 ### Completed Milestones:
 
-#### OpenAPI_Interface: Capable of parsing openapi specifications into an interface suitable for guard-railing communication between an app and a remote API.
+#### OpenAPI_Interface:
+#### Capable of parsing openapi specifications into an interface suitable for guard-railing communication between an app and a remote API.
+
+#### UI: 
+#### Console allows access to generated openapi commands.
+    
